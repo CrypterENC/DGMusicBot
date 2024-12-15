@@ -15,6 +15,7 @@ class music_cog(commands.Cog):
 
         # 2d array containing [song, channel]
         self.music_queue = []
+        self.current_song = None  # Add this line to keep track of the current song
         self.YDL_OPTIONS = {'format': 'bestaudio/best'}
         self.FFMPEG_OPTIONS = {'options': '-vn'}
 
@@ -41,9 +42,11 @@ class music_cog(commands.Cog):
             loop = asyncio.get_event_loop()
             data = await loop.run_in_executor(None, lambda: self.ytdl.extract_info(m_url, download=False))
             song = data['url']
+            self.current_song = data['title']  # Update the current song
             self.vc.play(discord.FFmpegPCMAudio(song, executable= "ffmpeg.exe", **self.FFMPEG_OPTIONS), after=lambda e: asyncio.run_coroutine_threadsafe(self.play_next(), self.bot.loop))
         else:
             self.is_playing = False
+            self.current_song = None  # Clear the current song
 
     # infinite loop checking 
     async def play_music(self, ctx):
@@ -66,10 +69,12 @@ class music_cog(commands.Cog):
             loop = asyncio.get_event_loop()
             data = await loop.run_in_executor(None, lambda: self.ytdl.extract_info(m_url, download=False))
             song = data['url']
+            self.current_song = data['title']  # Update the current song
             self.vc.play(discord.FFmpegPCMAudio(song, executable= "ffmpeg.exe", **self.FFMPEG_OPTIONS), after=lambda e: asyncio.run_coroutine_threadsafe(self.play_next(), self.bot.loop))
 
         else:
             self.is_playing = False
+            self.current_song = None  # Clear the current song
 
     @commands.command(name="play", aliases=["p","playing"], help="Plays a selected song from youtube")
     async def play(self, ctx, *args):
@@ -119,7 +124,6 @@ class music_cog(commands.Cog):
             #try to play next in the queue if it exists
             await self.play_music(ctx)
 
-
     @commands.command(name="queue", aliases=["q"], help="Displays the current songs in queue")
     async def queue(self, ctx):
         retval = ""
@@ -148,3 +152,33 @@ class music_cog(commands.Cog):
     async def re(self, ctx):
         self.music_queue.pop()
         await ctx.send("```last song removed```")
+
+    @commands.command(name="nowplaying", aliases=["np"], help="Displays the current song being played")
+    async def now_playing(self, ctx):
+        if self.current_song:
+            await ctx.send(f"```Now playing: {self.current_song}```")
+        else:
+            await ctx.send("```No song is currently playing```")
+
+    @commands.command(name="play_playlist", aliases=["pp"], help="Plays a playlist from a YouTube URL")
+    async def play_playlist(self, ctx, url):
+        try:
+            voice_channel = ctx.author.voice.channel
+        except:
+            await ctx.send("```You need to connect to a voice channel first!```")
+            return
+
+        if self.is_paused:
+            self.vc.resume()
+        else:
+            loop = asyncio.get_event_loop()
+            data = await loop.run_in_executor(None, lambda: self.ytdl.extract_info(url, download=False))
+            if 'entries' in data:
+                for entry in data['entries']:
+                    song = {'source': entry['webpage_url'], 'title': entry['title']}
+                    self.music_queue.append([song, voice_channel])
+                await ctx.send(f"```Added {len(data['entries'])} songs to the queue from the playlist```")
+                if not self.is_playing:
+                    await self.play_music(ctx)
+            else:
+                await ctx.send("```Could not download the playlist. Incorrect format or URL.```")

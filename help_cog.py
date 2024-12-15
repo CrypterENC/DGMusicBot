@@ -1,4 +1,3 @@
-
 import discord
 from discord.ext import commands
 
@@ -11,7 +10,6 @@ class help_cog(commands.Cog):
 
     def set_message(self):
         self.help_message = f"""
-```
 General commands:
 {self.bot.command_prefix}help - displays all the available commands
 {self.bot.command_prefix}q - displays the current music queue
@@ -23,7 +21,7 @@ General commands:
 {self.bot.command_prefix}resume - resumes playing the current song
 {self.bot.command_prefix}prefix - change command prefix
 {self.bot.command_prefix}remove - removes last song from the queue
-```
+{self.bot.command_prefix}nowplaying - removes last song from the queue
 """
 
     @commands.Cog.listener()
